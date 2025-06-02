@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-    A production-ready AI chatbot built with Next.js 14, featuring automatic deployment on Railway, PostgreSQL database, and Redis caching.
+    Darvaya AI chatbot built with Next.js 14, featuring automatic deployment on Railway, PostgreSQL database, and Redis caching.
 </p>
 
 <p align="center">
