@@ -1,46 +1,35 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Toaster } from 'sonner';
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Inter } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/react';
-import { DevToolsProvider } from '@/lib/dev-tools/context';
-import { DevToolsPanel } from '@/components/dev-tools/dev-tools-panel';
-import { DevToolsInitializer } from '@/components/dev-tools/dev-tools-initializer';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Toaster } from "sonner";
+import type { Metadata } from "next";
+import { GeistSans, GeistMono } from "geist/font";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { DevToolsProvider } from "@/lib/dev-tools/context";
+import { DevToolsPanel } from "@/components/dev-tools/dev-tools-panel";
+import { DevToolsInitializer } from "@/components/dev-tools/dev-tools-initializer";
+import { cn } from "@/lib/utils";
 
-import './globals.css';
-import { SessionProvider } from 'next-auth/react';
+import "./globals.css";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  metadataBase: new URL("https://chat.vercel.ai"),
+  title: "Next.js Chatbot Template",
+  description: "Next.js chatbot template using the AI SDK.",
 };
 
 export const viewport = {
   maximumScale: 1, // Disable auto-zoom on mobile Safari
 };
 
-const geist = Geist({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-geist',
-  adjustFontFallback: false,
-});
+const geist = GeistSans;
+const geistMono = GeistMono;
 
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-geist-mono',
-  adjustFontFallback: false,
-});
-
-const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
-const DARK_THEME_COLOR = 'hsl(240deg 10% 3.92%)';
+const LIGHT_THEME_COLOR = "hsl(0 0% 100%)";
+const DARK_THEME_COLOR = "hsl(240deg 10% 3.92%)";
 const THEME_COLOR_SCRIPT = `\
 (function() {
   var html = document.documentElement;
@@ -59,7 +48,7 @@ const THEME_COLOR_SCRIPT = `\
   updateThemeColor();
 })();`;
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
@@ -94,7 +83,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={cn('min-h-screen font-sans antialiased', inter.className)}
+        className={cn("min-h-screen font-sans antialiased", inter.className)}
       >
         <DevToolsProvider>
           <ThemeProvider

@@ -1,13 +1,13 @@
-import { auth } from '@/app/(auth)/auth';
-import { ChatSDKError } from '@/lib/errors';
-import { z } from 'zod';
-import { OpenAI } from 'openai';
+import { auth } from "@/app/(auth)/auth";
+import { ChatSDKError } from "@/lib/errors";
+import { z } from "zod";
+import OpenAI from "openai";
 
 const openai = new OpenAI();
 
 // Schema for AI analysis request
 const aiAnalysisSchema = z.object({
-  type: z.enum(['team_optimization', 'user_insights', 'activity_analysis']),
+  type: z.enum(["team_optimization", "user_insights", "activity_analysis"]),
   data: z.record(z.unknown()),
 });
 
@@ -16,21 +16,21 @@ export async function POST(request: Request) {
     const session = await auth();
 
     if (!session?.user) {
-      return new ChatSDKError('unauthorized:organization').toResponse();
+      return new ChatSDKError("unauthorized:organization").toResponse();
     }
 
     if (!session.user.organizationId) {
       return new ChatSDKError(
-        'not_found:organization',
-        'User does not belong to an organization',
+        "not_found:organization",
+        "User does not belong to an organization",
       ).toResponse();
     }
 
     // Only admins and managers can use AI features
-    if (!['admin', 'manager'].includes(session.user.role)) {
+    if (!["admin", "manager"].includes(session.user.role)) {
       return new ChatSDKError(
-        'forbidden:organization',
-        'Only admins and managers can use AI features',
+        "forbidden:organization",
+        "Only admins and managers can use AI features",
       ).toResponse();
     }
 
@@ -39,13 +39,13 @@ export async function POST(request: Request) {
 
     let result;
     switch (type) {
-      case 'team_optimization':
+      case "team_optimization":
         result = await analyzeTeamOptimization(data);
         break;
-      case 'user_insights':
+      case "user_insights":
         result = await generateUserInsights(data);
         break;
-      case 'activity_analysis':
+      case "activity_analysis":
         result = await analyzeOrganizationActivity(data);
         break;
     }
@@ -54,12 +54,12 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return new ChatSDKError(
-        'bad_request:organization',
-        'Invalid request data',
+        "bad_request:organization",
+        "Invalid request data",
       ).toResponse();
     }
 
-    return new ChatSDKError('internal_server_error:organization').toResponse();
+    return new ChatSDKError("internal_server_error:organization").toResponse();
   }
 }
 
@@ -74,22 +74,22 @@ async function analyzeTeamOptimization(data: Record<string, unknown>) {
     4. Potential skill gaps`;
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
+    model: "gpt-4-turbo-preview",
     messages: [
       {
-        role: 'system',
+        role: "system",
         content:
-          'You are an expert organizational consultant specializing in team optimization.',
+          "You are an expert organizational consultant specializing in team optimization.",
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt,
       },
     ],
   });
 
   return {
-    type: 'team_optimization',
+    type: "team_optimization",
     recommendations: completion.choices[0].message.content,
   };
 }
@@ -105,22 +105,22 @@ async function generateUserInsights(data: Record<string, unknown>) {
     4. Areas for improvement`;
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
+    model: "gpt-4-turbo-preview",
     messages: [
       {
-        role: 'system',
+        role: "system",
         content:
-          'You are an expert in analyzing user behavior and providing actionable insights.',
+          "You are an expert in analyzing user behavior and providing actionable insights.",
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt,
       },
     ],
   });
 
   return {
-    type: 'user_insights',
+    type: "user_insights",
     insights: completion.choices[0].message.content,
   };
 }
@@ -136,22 +136,22 @@ async function analyzeOrganizationActivity(data: Record<string, unknown>) {
     4. Growth opportunities`;
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
+    model: "gpt-4-turbo-preview",
     messages: [
       {
-        role: 'system',
+        role: "system",
         content:
-          'You are an expert in organizational analysis and strategic planning.',
+          "You are an expert in organizational analysis and strategic planning.",
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt,
       },
     ],
   });
 
   return {
-    type: 'activity_analysis',
+    type: "activity_analysis",
     analysis: completion.choices[0].message.content,
   };
 }
