@@ -37,3 +37,39 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Uploads (if storing locally)
+/public/uploads/
+uploads/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Cache
+.cache/
+.turbo/
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Environment files (already covered, but being explicit)
+.env

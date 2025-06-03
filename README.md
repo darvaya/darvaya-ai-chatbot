@@ -14,6 +14,7 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - 📱 Responsive design
 - 🔒 Type-safe with TypeScript
 - 🗄️ Database with PostgreSQL and Drizzle ORM
+- 📁 File uploads with AWS S3 or S3-compatible storage
 
 ## Tech Stack
 
@@ -27,6 +28,7 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - **Analytics:** PostHog
 - **Monitoring:** Sentry
 - **AI Provider:** OpenAI
+- **Storage:** AWS S3 (or S3-compatible)
 - **Deployment:** Railway
 
 ## Getting Started
@@ -37,6 +39,7 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - PostgreSQL
 - Redis (optional)
 - pnpm
+- AWS S3 bucket or S3-compatible storage (for file uploads)
 
 ### Installation
 
@@ -57,6 +60,27 @@ cp .env.example .env
 ```
 
 4. Update the environment variables in `.env` with your values.
+
+### Environment Variables
+
+Copy the `.env.example` file to `.env.local` and fill in the required variables.
+
+#### File Storage Configuration
+
+For file uploads, you'll need to configure AWS S3 or an S3-compatible service. Add these to your `.env.local`:
+
+```bash
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=your_region
+AWS_S3_BUCKET_NAME=your-bucket-name
+
+# Optional: For S3-compatible services like DigitalOcean Spaces, Cloudflare R2, etc.
+# AWS_ENDPOINT=https://your-endpoint.com
+# AWS_FORCE_PATH_STYLE=true
+# AWS_S3_PUBLIC_URL=https://your-cdn-url.com
+```
 
 5. Set up the database:
 ```bash
