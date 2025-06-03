@@ -2,52 +2,124 @@ name: Deploy to Railway
 
 on:
   push:
+    branches: [main, production]
+  pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
+# Environment variables available to all jobs and steps in this workflow
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '8'
+  PNPM_VERSION: '8.10.0'
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+# Default environment variables for deployment
+defaults:
+  run:
+    shell: bash
 
 jobs:
   deploy:
+    name: Deploy to ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || github.ref_name == 'main' && 'production' || 'staging' }}
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || github.ref_name == 'main' && 'production' || 'staging' }}
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            ~/Library/pnpm/store
+            /opt/hostedtoolcache/pnpm
+            .next/cache
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint code
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@latest
 
-      - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_NAME }}
+      - name: Login to Railway
+        run: railway login --no-browser
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
+      - name: Deploy to Railway
+        run: |
+          # Set environment variables based on the target environment
+          if [ "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || github.ref_name == 'main' && 'production' || 'staging' }}" = "production" ]; then
+            railway up --service ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }} --environment production
+          else
+            railway up --service ${{ secrets.RAILWAY_STAGING_SERVICE_ID }} --environment staging
+          fi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+
+      - name: Run database migrations
+        run: pnpm migrate
+        if: success() && github.ref_name == 'main'  # Only run migrations on production
+
       - name: Notify deployment status
         if: always()
-        uses: slackapi/slack-github-action@v1
-        with:
-          channel-id: 'deployments'
-          slack-message: |
-            Deployment Status: ${{ job.status }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            Workflow: ${{ github.workflow }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: "Deployment ${{ job.status == 'success' && 'succeeded' || 'failed' }} - ${{ github.workflow }}"
+          SLACK_MESSAGE: |
+            *Repository*: ${{ github.repository }}
+            *Environment*: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || github.ref_name == 'main' && 'production' || 'staging' }}
+            *Branch*: ${{ github.ref_name }}
+            *Commit*: ${{ github.sha }}
+            *Workflow*: ${{ github.workflow }}
+            *Status*: ${{ job.status }}
+            *Run URL*: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_FOOTER: "${{ github.workflow }} #${{ github.run_number }}"
+          MSG_MINIMAL: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }} 

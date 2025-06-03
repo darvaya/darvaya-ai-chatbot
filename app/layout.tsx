@@ -1,54 +1,27 @@
-"use client";
-
-import React from "react";
-import { Toaster } from "sonner";
-import type { Metadata } from "next";
-import { GeistSans, GeistMono } from "geist/font";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
-import { DevToolsProvider } from "@/lib/dev-tools/context";
-import { DevToolsPanel } from "@/components/dev-tools/dev-tools-panel";
-import { DevToolsInitializer } from "@/components/dev-tools/dev-tools-initializer";
-import { cn } from "@/lib/utils";
+import { Toaster } from "react-hot-toast";
+import { PostHogProvider } from "posthog-js/react";
+import { env } from "@/lib/env";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import Script from "next/script";
 
-import "./globals.css";
-import { SessionProvider } from "next-auth/react";
-
-export const metadata: Metadata = {
-  metadataBase: new URL("https://chat.vercel.ai"),
-  title: "Next.js Chatbot Template",
-  description: "Next.js chatbot template using the AI SDK.",
-};
-
-export const viewport = {
-  maximumScale: 1, // Disable auto-zoom on mobile Safari
-};
-
-const geist = GeistSans;
-const geistMono = GeistMono;
-
-const LIGHT_THEME_COLOR = "hsl(0 0% 100%)";
-const DARK_THEME_COLOR = "hsl(240deg 10% 3.92%)";
-const THEME_COLOR_SCRIPT = `\
-(function() {
-  var html = document.documentElement;
-  var meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement('meta');
-    meta.setAttribute('name', 'theme-color');
-    document.head.appendChild(meta);
-  }
-  function updateThemeColor() {
-    var isDark = html.classList.contains('dark');
-    meta.setAttribute('content', isDark ? '${DARK_THEME_COLOR}' : '${LIGHT_THEME_COLOR}');
-  }
-  var observer = new MutationObserver(updateThemeColor);
-  observer.observe(html, { attributes: true, attributeFilter: ['class'] });
-  updateThemeColor();
-})();`;
+import "@/styles/globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "DarvayaAI - Advanced AI-powered Chatbot",
+  description:
+    "Intelligent conversational experiences and deep insights for businesses.",
+  icons: {
+    icon: "/favicon.ico",
+  },
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  ),
+};
 
 export default function RootLayout({
   children,
@@ -56,51 +29,56 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      // `next-themes` injects an extra classname to the body element to avoid
-      // visual flicker before hydration. Hence the `suppressHydrationWarning`
-      // prop is necessary to avoid the React hydration mismatch warning.
-      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
-      suppressHydrationWarning
-      className={`${geist.variable} ${geistMono.variable} ${inter.className}`}
-    >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: THEME_COLOR_SCRIPT,
-          }}
-        />
-        <meta
-          name="theme-color"
-          content="#000000"
-          media="(prefers-color-scheme: dark)"
-        />
-        <meta
-          name="theme-color"
-          content="#ffffff"
-          media="(prefers-color-scheme: light)"
-        />
-      </head>
-      <body
-        className={cn("min-h-screen font-sans antialiased", inter.className)}
-      >
-        <DevToolsProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Toaster position="top-center" />
-            <SessionProvider>
-              <DevToolsInitializer />
-              {children}
-              <DevToolsPanel />
-            </SessionProvider>
-          </ThemeProvider>
-        </DevToolsProvider>
-        <Analytics />
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+              <>
+                <Script
+                  src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+                  strategy="afterInteractive"
+                />
+                <Script id="google-analytics" strategy="afterInteractive">
+                  {`
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    gtag('js', new Date());
+                    gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}');
+                  `}
+                </Script>
+              </>
+            )}
+            {env.NEXT_PUBLIC_POSTHOG_KEY ? (
+              <PostHogProvider
+                apiKey={env.NEXT_PUBLIC_POSTHOG_KEY}
+                options={{
+                  api_host:
+                    env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com",
+                  capture_pageview: true,
+                  persistence: "localStorage",
+                  autocapture: true,
+                  loaded: (posthog) => {
+                    if (process.env.NODE_ENV === "development") posthog.debug();
+                  },
+                }}
+              >
+                {children}
+                <Toaster />
+              </PostHogProvider>
+            ) : (
+              <>
+                {children}
+                <Toaster />
+              </>
+            )}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

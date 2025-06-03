@@ -28,7 +28,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            value: "public, max-age=31536000, must-revalidate",
           },
         ],
       },
@@ -64,6 +64,11 @@ const nextConfig = {
     };
   },
 
+  // Use SWC for compilation
+  experimental: {
+    swcMinify: true,
+  },
+
   // Webpack configuration for optimizations
   webpack: (config, { dev, isServer }) => {
     // Optimize CSS
@@ -76,6 +81,25 @@ const nextConfig = {
           chunks: "all",
           enforce: true,
         },
+      };
+    }
+
+    // Webpack configuration for Node.js polyfills
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: require.resolve("crypto-browserify"),
+        stream: require.resolve("stream-browserify"),
+        url: require.resolve("url"),
+        zlib: require.resolve("browserify-zlib"),
+        http: require.resolve("stream-http"),
+        https: require.resolve("https-browserify"),
+        assert: require.resolve("assert"),
+        os: require.resolve("os-browserify"),
+        _stream_transform: require.resolve("stream-browserify"),
       };
     }
 
