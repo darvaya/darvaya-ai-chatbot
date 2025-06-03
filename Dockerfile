@@ -1,69 +1,44 @@
-# Use Node.js LTS version with Debian for better compatibility
-FROM node:20-slim AS base
+# Build stage with all dependencies
+FROM node:20-slim AS builder
+WORKDIR /app
 
-# Install pnpm and required system dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
     build-essential \
     python3 \
     pkg-config \
     libvips-dev \
-    libglib2.0-0 \
-    libcairo2-dev \
-    libpango1.0-dev \
-    libjpeg-dev \
-    libgif-dev \
-    librsvg2-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && corepack enable \
-    && corepack prepare pnpm@latest --activate
+    && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for Sharp
-ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
-ENV npm_config_platform=linux
-ENV npm_config_arch=x64
-ENV npm_config_target_arch=x64
-ENV npm_config_target_platform=linux
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Install dependencies only when needed
-FROM base AS deps
-WORKDIR /app
-
-# Copy package files first for better layer caching
+# Copy package files
 COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies with frozen lockfile
-RUN pnpm install --frozen-lockfile --prod=false
+# Install all dependencies including devDependencies
+RUN pnpm install --frozen-lockfile
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-
-# Copy package files and installed dependencies
-COPY --from=deps /app/node_modules ./node_modules
+# Copy source code
 COPY . .
 
-# Environment variables for build
+# Build the application
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
-    NEXT_SHARP_PATH=/tmp/node_modules/sharp \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install specific version of sharp and build the application
-RUN echo "Installing sharp..." \
-    && pnpm add sharp@0.33.2 \
-    && echo "Building application..." \
+# Install sharp with specific version and build
+RUN pnpm add sharp@0.33.2 \
     && pnpm build \
-    && echo "Pruning production dependencies..." \
     && pnpm prune --prod
 
-# Production image, copy all the files and run next
+# Production stage
 FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install production dependencies
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
+    libvips-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -72,7 +47,7 @@ ENV NODE_ENV=production \
     PORT=3000 \
     NODE_OPTIONS='--max_old_space_size=2048'
 
-# Create a non-root user
+# Create a non-root user and set up directories
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
     mkdir -p /app/.next/cache /app/.next/standalone /app/.next/static && \
@@ -81,7 +56,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Ensure pnpm is available
 RUN corepack enable
 
-# Copy necessary files from builder
+# Copy necessary files from builder with proper permissions
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -98,5 +73,5 @@ EXPOSE 3000
 # Set the command to start the application
 USER nextjs
 
-# Set the command to start the server
+# Start the application
 CMD ["node", "server.js"] 
