@@ -1,8 +1,18 @@
 # Use Node.js LTS version with Alpine for smaller image size
 FROM node:20-alpine AS base
 
-# Install pnpm and system dependencies
-RUN apk add --no-cache libc6-compat curl python3 make g++ \
+# Install pnpm, system dependencies, and Sharp dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    curl \
+    python3 \
+    make \
+    g++ \
+    vips-dev \
+    vips-cpp \
+    vips-heif \
+    vips-webp \
+    vips \
     && corepack enable \
     && corepack prepare pnpm@latest --activate
 
@@ -39,8 +49,13 @@ RUN pnpm add sharp \
 FROM base AS runner
 WORKDIR /app
 
-# Install production dependencies
-RUN apk add --no-cache curl
+# Install production dependencies including Sharp runtime dependencies
+RUN apk add --no-cache \
+    curl \
+    vips \
+    vips-cpp \
+    vips-heif \
+    vips-webp
 
 # Set environment variables
 ENV NODE_ENV=production \
