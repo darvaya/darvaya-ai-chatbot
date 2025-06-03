@@ -2,12 +2,18 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies with additional libraries for Sharp
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     pkg-config \
     libvips-dev \
+    libglib2.0-0 \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable pnpm
@@ -28,9 +34,16 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_OPTIONS=--openssl-legacy-provider
 
 # Install sharp with specific version and build
-RUN pnpm add sharp@0.33.2 \
-    && pnpm build \
-    && pnpm prune --prod
+RUN echo "Installing dependencies..." && \
+    pnpm config set store-dir .pnpm-store && \
+    pnpm config set strict-peer-dependencies false && \
+    pnpm config set prefer-offline true && \
+    echo "Installing sharp..." && \
+    pnpm add --unsafe-perm sharp@0.33.2 && \
+    echo "Building application..." && \
+    pnpm build && \
+    echo "Pruning production dependencies..." && \
+    pnpm prune --prod
 
 # Production stage
 FROM node:20-slim AS runner
