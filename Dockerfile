@@ -1,5 +1,5 @@
 # Build stage with all dependencies
-FROM node:18.19.1-slim AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install build dependencies with additional libraries for Sharp
@@ -52,7 +52,7 @@ RUN echo "Installing pnpm and dependencies..." && \
     pnpm prune --prod
 
 # Production stage
-FROM node:18.19.1-slim AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 # Install runtime dependencies
