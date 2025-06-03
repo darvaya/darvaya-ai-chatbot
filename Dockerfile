@@ -1,5 +1,5 @@
 # Build stage with all dependencies
-FROM node:20-slim AS builder
+FROM node:18.19.1-slim AS builder
 WORKDIR /app
 
 # Install build dependencies with additional libraries for Sharp
@@ -34,19 +34,24 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_OPTIONS=--openssl-legacy-provider
 
 # Install sharp with specific version and build
-RUN echo "Installing dependencies..." && \
+RUN echo "Setting up pnpm..." && \
     pnpm config set store-dir .pnpm-store && \
     pnpm config set strict-peer-dependencies false && \
     pnpm config set prefer-offline true && \
-    echo "Installing sharp..." && \
-    pnpm add --unsafe-perm sharp@0.33.2 && \
+    echo "Installing sharp with specific flags..." && \
+    SHARP_IGNORE_GLOBAL_LIBVIPS=1 \
+    npm_config_platform=linux \
+    npm_config_arch=x64 \
+    npm_config_target_arch=x64 \
+    npm_config_target_platform=linux \
+    pnpm add sharp@0.33.2 --unsafe-perm=true --allow-root && \
     echo "Building application..." && \
     pnpm build && \
     echo "Pruning production dependencies..." && \
     pnpm prune --prod
 
 # Production stage
-FROM node:20-slim AS runner
+FROM node:18.19.1-slim AS runner
 WORKDIR /app
 
 # Install runtime dependencies
