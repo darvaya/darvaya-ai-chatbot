@@ -6,9 +6,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     python3 \
+    pkg-config \
+    libvips-dev \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable \
     && corepack prepare pnpm@latest --activate
+
+# Set environment variables for Sharp
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -34,8 +39,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_SHARP_PATH=/tmp/node_modules/sharp \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install sharp for image optimization and build the application
-RUN pnpm add sharp \
+# Install sharp with specific platform and build the application
+RUN pnpm add --ignore-scripts sharp \
+    && pnpm add --save-optional --ignore-scripts sharp@latest \
+    && pnpm rebuild --verbose sharp \
     && pnpm build \
     && pnpm prune --prod
 
