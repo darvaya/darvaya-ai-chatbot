@@ -1,46 +1,39 @@
 # Use Node.js LTS version with Alpine for smaller image size
 FROM node:20-alpine AS base
 
-# Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm and system dependencies
+RUN apk add --no-cache libc6-compat curl python3 make g++ \
+    && corepack enable \
+    && corepack prepare pnpm@latest --activate
 
 # Install dependencies only when needed
 FROM base AS deps
-# Install system dependencies
-RUN apk add --no-cache libc6-compat curl python3 make g++
 WORKDIR /app
 
-# Ensure pnpm is available
-RUN corepack enable && pnpm --version
-
-# Install dependencies based on the preferred package manager
+# Copy package files first for better layer caching
 COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies with frozen lockfile
 RUN pnpm install --frozen-lockfile --prod=false
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
-# Ensure pnpm is available
-RUN corepack enable && pnpm --version
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-# Copy application code
+
+# Copy package files and installed dependencies
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
-    NEXT_SHARP_PATH=/tmp/node_modules/sharp
+    NEXT_SHARP_PATH=/tmp/node_modules/sharp \
+    NODE_OPTIONS=--openssl-legacy-provider
 
-# Install sharp for image optimization
-RUN pnpm add sharp
-
-# Build the application with production optimizations
-RUN pnpm build && pnpm prune --prod
+# Install sharp for image optimization and build the application
+RUN pnpm add sharp \
+    && pnpm build \
+    && pnpm prune --prod
 
 # Production image, copy all the files and run next
 FROM base AS runner
