@@ -41,15 +41,18 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install Sharp first with its required dependencies
-RUN echo "Installing Sharp with required dependencies..." && \
-    pnpm add sharp@0.33.2 --ignore-scripts --unsafe-perm && \
-    echo "Installing remaining dependencies..." && \
-    pnpm install --frozen-lockfile && \
-    echo "Building application..." && \
-    pnpm build && \
-    echo "Pruning production dependencies..." && \
-    pnpm prune --prod
+# Install dependencies with more detailed logging
+RUN echo "=== Installing Sharp ===" && \
+    pnpm add sharp@0.33.2 --unsafe-perm || (echo "Sharp installation failed" && exit 1) && \
+    \
+    echo "\n=== Installing remaining dependencies ===" && \
+    pnpm install --frozen-lockfile --no-optional || (echo "Dependency installation failed" && exit 1) && \
+    \
+    echo "\n=== Building application ===" && \
+    pnpm run build || (echo "Build failed" && exit 1) && \
+    \
+    echo "\n=== Pruning production dependencies ===" && \
+    pnpm prune --production
 
 # Production stage
 FROM node:20-slim AS runner
