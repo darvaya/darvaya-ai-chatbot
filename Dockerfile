@@ -1,8 +1,8 @@
-# Build stage with all dependencies
+# Build stage
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Install build dependencies with additional libraries for Sharp
+# Install system dependencies required for building
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
@@ -17,94 +17,73 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for Sharp
-ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1 \
-    npm_config_platform=linux \
-    npm_config_arch=x64 \
-    npm_config_target_arch=x64 \
-    npm_config_target_platform=linux
-
 # Enable pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
+# Set environment variables for production build
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS="--max_old_space_size=4096" \
+    SHARP_IGNORE_GLOBAL_LIBVIPS=1 \
+    npm_config_platform=linux \
+    npm_config_arch=x64
+
+# Copy package files first for better layer caching
 COPY package.json pnpm-lock.yaml* ./
 
-# Install all dependencies including devDependencies
+# Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the application
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production \
-    NODE_OPTIONS=--openssl-legacy-provider
-
-# Set build environment
-ENV NODE_ENV=production \
-    NODE_OPTIONS="--max_old_space_size=4096" \
-    NEXT_TELEMETRY_DISABLED=1
-
-# Install Sharp first
-RUN echo "=== Installing Sharp ===" && \
-    pnpm add sharp@0.33.2 --unsafe-perm --no-optional
-
-# Install remaining dependencies
-RUN echo "\n=== Installing dependencies ===" && \
-    pnpm install --frozen-lockfile --no-optional
-
-# Copy source code (after dependencies for better caching)
-COPY . .
-
-# Build application with verbose output
-RUN echo "\n=== Building application ===" && \
-    pnpm run build --verbose
-
-# Prune production dependencies
-RUN echo "\n=== Pruning production dependencies ===" && \
-    pnpm prune --production
+RUN pnpm run build
 
 # Production stage
 FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install runtime dependencies
+# Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
-    libvips-dev \
+    libvips42 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables
+# Set production environment
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    NODE_OPTIONS='--max_old_space_size=2048'
+    NODE_OPTIONS="--max_old_space_size=2048"
 
-# Create a non-root user and set up directories
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    mkdir -p /app/.next/cache /app/.next/standalone /app/.next/static && \
-    chown -R nextjs:nodejs /app/.next
+    adduser --system --uid 1001 nextjs
 
-# Ensure pnpm is available
+# Enable pnpm in production stage
 RUN corepack enable
 
-# Copy necessary files from builder with proper permissions
+# Copy built application from builder stage
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# Install only production dependencies
+RUN pnpm install --prod --frozen-lockfile && pnpm store prune
+
+# Create cache directory with proper permissions
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+    CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Expose the port the app runs on
+# Expose port
 EXPOSE 3000
 
-# Set the command to start the application
+# Switch to non-root user
 USER nextjs
 
 # Start the application
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]
