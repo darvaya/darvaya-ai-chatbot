@@ -8,12 +8,22 @@ RUN apt-get update && apt-get install -y \
     python3 \
     pkg-config \
     libvips-dev \
+    libglib2.0-0 \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable \
     && corepack prepare pnpm@latest --activate
 
 # Set environment variables for Sharp
 ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
+ENV npm_config_platform=linux
+ENV npm_config_arch=x64
+ENV npm_config_target_arch=x64
+ENV npm_config_target_platform=linux
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -39,11 +49,12 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_SHARP_PATH=/tmp/node_modules/sharp \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install sharp with specific platform and build the application
-RUN pnpm add --ignore-scripts sharp \
-    && pnpm add --save-optional --ignore-scripts sharp@latest \
-    && pnpm rebuild --verbose sharp \
+# Install specific version of sharp and build the application
+RUN echo "Installing sharp..." \
+    && pnpm add sharp@0.33.2 \
+    && echo "Building application..." \
     && pnpm build \
+    && echo "Pruning production dependencies..." \
     && pnpm prune --prod
 
 # Production image, copy all the files and run next
