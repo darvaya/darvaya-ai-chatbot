@@ -14,7 +14,15 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables for Sharp
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1 \
+    npm_config_platform=linux \
+    npm_config_arch=x64 \
+    npm_config_target_arch=x64 \
+    npm_config_target_platform=linux
 
 # Enable pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -33,18 +41,11 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install sharp with specific version and build
-RUN echo "Setting up pnpm..." && \
-    pnpm config set store-dir .pnpm-store && \
-    pnpm config set strict-peer-dependencies false && \
-    pnpm config set prefer-offline true && \
-    echo "Installing sharp with specific flags..." && \
-    SHARP_IGNORE_GLOBAL_LIBVIPS=1 \
-    npm_config_platform=linux \
-    npm_config_arch=x64 \
-    npm_config_target_arch=x64 \
-    npm_config_target_platform=linux \
-    pnpm add sharp@0.33.2 --unsafe-perm=true --allow-root && \
+# Install pnpm and dependencies separately
+RUN echo "Installing pnpm and dependencies..." && \
+    pnpm install --frozen-lockfile --ignore-scripts && \
+    echo "Installing sharp with specific version..." && \
+    pnpm add sharp@0.33.2 --ignore-scripts --unsafe-perm && \
     echo "Building application..." && \
     pnpm build && \
     echo "Pruning production dependencies..." && \
