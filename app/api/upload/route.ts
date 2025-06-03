@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { uploadFile, deleteFile } from "@/lib/storage";
 
+// Route segment config
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const runtime = "nodejs";
+// Next.js 13+ automatically handles body parsing for file uploads
 
 export async function POST(request: Request) {
   try {

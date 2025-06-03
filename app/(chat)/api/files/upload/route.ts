@@ -6,12 +6,8 @@ import { uploadFileToS3 } from "@/lib/s3";
 // Route segment config
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute
-
-export const config = {
-  api: {
-    bodyParser: false, // Disable built-in body parser for file uploads
-  },
-};
+export const runtime = "nodejs";
+// Next.js 13+ automatically handles body parsing for file uploads
 
 // Maximum file size (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
