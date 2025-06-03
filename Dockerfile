@@ -41,17 +41,28 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install dependencies with more detailed logging
+# Set build environment
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--max_old_space_size=4096" \
+    NEXT_TELEMETRY_DISABLED=1
+
+# Install Sharp first
 RUN echo "=== Installing Sharp ===" && \
-    pnpm add sharp@0.33.2 --unsafe-perm || (echo "Sharp installation failed" && exit 1) && \
-    \
-    echo "\n=== Installing remaining dependencies ===" && \
-    pnpm install --frozen-lockfile --no-optional || (echo "Dependency installation failed" && exit 1) && \
-    \
-    echo "\n=== Building application ===" && \
-    pnpm run build || (echo "Build failed" && exit 1) && \
-    \
-    echo "\n=== Pruning production dependencies ===" && \
+    pnpm add sharp@0.33.2 --unsafe-perm --no-optional
+
+# Install remaining dependencies
+RUN echo "\n=== Installing dependencies ===" && \
+    pnpm install --frozen-lockfile --no-optional
+
+# Copy source code (after dependencies for better caching)
+COPY . .
+
+# Build application with verbose output
+RUN echo "\n=== Building application ===" && \
+    pnpm run build --verbose
+
+# Prune production dependencies
+RUN echo "\n=== Pruning production dependencies ===" && \
     pnpm prune --production
 
 # Production stage
