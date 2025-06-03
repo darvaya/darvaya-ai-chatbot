@@ -41,11 +41,11 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     NODE_OPTIONS=--openssl-legacy-provider
 
-# Install pnpm and dependencies separately
-RUN echo "Installing pnpm and dependencies..." && \
-    pnpm install --frozen-lockfile --ignore-scripts && \
-    echo "Installing sharp with specific version..." && \
+# Install Sharp first with its required dependencies
+RUN echo "Installing Sharp with required dependencies..." && \
     pnpm add sharp@0.33.2 --ignore-scripts --unsafe-perm && \
+    echo "Installing remaining dependencies..." && \
+    pnpm install --frozen-lockfile && \
     echo "Building application..." && \
     pnpm build && \
     echo "Pruning production dependencies..." && \
