@@ -1,18 +1,12 @@
-# Use Node.js LTS version with Alpine for smaller image size
-FROM node:20-alpine AS base
+# Use Node.js LTS version with Debian for better compatibility
+FROM node:20-slim AS base
 
-# Install pnpm, system dependencies, and Sharp dependencies
-RUN apk add --no-cache \
-    libc6-compat \
+# Install pnpm and required system dependencies
+RUN apt-get update && apt-get install -y \
     curl \
+    build-essential \
     python3 \
-    make \
-    g++ \
-    vips-dev \
-    vips-cpp \
-    vips-heif \
-    vips-webp \
-    vips \
+    && rm -rf /var/lib/apt/lists/* \
     && corepack enable \
     && corepack prepare pnpm@latest --activate
 
@@ -46,16 +40,13 @@ RUN pnpm add sharp \
     && pnpm prune --prod
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install production dependencies including Sharp runtime dependencies
-RUN apk add --no-cache \
+# Install production dependencies
+RUN apt-get update && apt-get install -y \
     curl \
-    vips \
-    vips-cpp \
-    vips-heif \
-    vips-webp
+    && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
 ENV NODE_ENV=production \
