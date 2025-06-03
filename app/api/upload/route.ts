@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { uploadFile, deleteFile } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 1 minute
+
 export const config = {
   api: {
     bodyParser: false,
