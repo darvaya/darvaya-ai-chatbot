@@ -1,6 +1,6 @@
 # DarvayaAI Chatbot
 
-A commercial-ready AI chatbot built with Next.js, featuring authentication, analytics, and monitoring.
+A commercial-ready AI chatbot built with Next.js, featuring authentication, analytics, and monitoring. Optimized for deployment on Railway.
 
 ## Features
 
@@ -9,12 +9,17 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - 🔍 Error tracking with Sentry
 - 💬 AI Chat with OpenAI GPT-4
 - 🎨 Beautiful UI with Tailwind CSS
-- 🚀 Edge Runtime Support
+- 🚀 Optimized for Railway Deployment
 - 🔄 Real-time streaming responses
 - 📱 Responsive design
 - 🔒 Type-safe with TypeScript
 - 🗄️ Database with PostgreSQL and Drizzle ORM
 - 📁 File uploads with AWS S3 or S3-compatible storage
+  - Drag-and-drop file uploads
+  - Image previews
+  - File type validation
+  - Progress tracking
+  - Secure file access with signed URLs
 
 ## Tech Stack
 
@@ -29,6 +34,9 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - **Monitoring:** Sentry
 - **AI Provider:** OpenAI
 - **Storage:** AWS S3 (or S3-compatible)
+  - AWS SDK v3
+  - S3-compatible services support (DigitalOcean Spaces, Cloudflare R2, MinIO, etc.)
+  - Signed URLs for secure file access
 - **Deployment:** Railway
 
 ## Getting Started
@@ -40,12 +48,38 @@ A commercial-ready AI chatbot built with Next.js, featuring authentication, anal
 - Redis (optional)
 - pnpm
 - AWS S3 bucket or S3-compatible storage (for file uploads)
+- Docker and Docker Compose (recommended for local development)
 
 ### Installation
 
+#### Option 1: Using Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/darvaya/darvaya-ai-chatbot.git
+cd darvaya-ai-chatbot
+
+# Copy environment file
+cp .env.example .env
+
+# Start services
+docker-compose up -d
+
+# Install dependencies
+pnpm install
+
+# Run database migrations
+pnpm db:push
+
+# Start development server
+pnpm dev
+```
+
+#### Option 2: Manual Setup
+
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/darvaya-ai-chatbot.git
+git clone https://github.com/darvaya/darvaya-ai-chatbot.git
 cd darvaya-ai-chatbot
 ```
 
@@ -60,109 +94,180 @@ cp .env.example .env
 ```
 
 4. Update the environment variables in `.env` with your values.
+5. Start PostgreSQL and Redis services
+6. Run database migrations:
+```bash
+pnpm db:push
+```
+7. Start the development server:
+```bash
+pnpm dev
+```
 
-### Environment Variables
+## File Uploads
 
-Copy the `.env.example` file to `.env.local` and fill in the required variables.
+The application includes a robust file upload system using AWS S3 or any S3-compatible storage service.
 
-#### File Storage Configuration
+### Features
 
-For file uploads, you'll need to configure AWS S3 or an S3-compatible service. Add these to your `.env.local`:
+- Drag and drop file uploads
+- File type validation
+- Progress tracking
+- Image previews
+- Secure file access with signed URLs
+- Support for public/private files
+- File deletion
+
+### Configuration
+
+1. Set up an S3 bucket or use an S3-compatible service (DigitalOcean Spaces, Cloudflare R2, MinIO, etc.)
+2. Configure CORS on your bucket to allow requests from your domain
+3. Add these environment variables to your `.env` file:
 
 ```bash
-# AWS S3 Configuration
+# Required AWS S3 Configuration
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=your_region
 AWS_S3_BUCKET_NAME=your-bucket-name
 
-# Optional: For S3-compatible services like DigitalOcean Spaces, Cloudflare R2, etc.
+# Optional: For S3-compatible services
 # AWS_ENDPOINT=https://your-endpoint.com
 # AWS_FORCE_PATH_STYLE=true
 # AWS_S3_PUBLIC_URL=https://your-cdn-url.com
+
+# Optional: File upload settings
+NEXT_PUBLIC_MAX_FILE_SIZE=10485760  # 10MB default
+NEXT_PUBLIC_ACCEPTED_FILE_TYPES=image/*,.pdf,.doc,.docx
 ```
 
-5. Set up the database:
-```bash
-pnpm db:push
+### Usage
+
+#### Using the FileUpload Component
+
+```tsx
+import { FileUpload } from '@/components/FileUpload';
+
+function MyComponent() {
+  const handleUpload = (url: string) => {
+    console.log('File uploaded:', url);
+  };
+
+  return (
+    <FileUpload 
+      onUploadComplete={handleUpload}
+      accept="image/*"
+      maxSizeMB={5}
+      path="uploads"
+    />
+  );
+}
 ```
 
-6. Start the development server:
+#### Using the useFileUpload Hook
+
+For more control, use the `useFileUpload` hook:
+
+```tsx
+import { useFileUpload } from '@/hooks/useFileUpload';
+
+function MyComponent() {
+  const { upload, isUploading, progress, error } = useFileUpload({
+    path: 'user-uploads',
+    onSuccess: (url) => console.log('Uploaded:', url),
+    onError: (error) => console.error('Upload failed:', error),
+  });
+
+  // ...
+}
+```
+
+### API Endpoints
+
+- `POST /api/upload` - Upload a file
+  - Body: `FormData` with `file` and optional `path`
+  - Returns: `{ url: string }`
+
+- `DELETE /api/upload?url={fileUrl}` - Delete a file
+  - Query: `url` - The URL of the file to delete
+
+## Development
+
+For detailed development setup and guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+### Key Development Scripts
+
 ```bash
+# Start development server
 pnpm dev
+
+# Build for production
+pnpm build
+
+# Start production server
+pnpm start
+
+# Run type checking
+pnpm typecheck
+
+# Run linter
+pnpm lint
+
+# Run tests
+pnpm test
+
+# Run database migrations
+pnpm db:push
+
+# Open Prisma Studio
+pnpm db:studio
 ```
 
 ## Deployment
 
-### Pre-deployment Checklist
-
-1. **Environment Variables**
-   - [ ] Set up production environment variables
-   - [ ] Configure domain in NextAuth URL
-   - [ ] Set up production database URL
-   - [ ] Configure production Redis URL (if using)
-   - [ ] Set up Sentry DSN
-   - [ ] Configure PostHog keys
-
-2. **Database**
-   - [ ] Run database migrations
-   - [ ] Verify database connection
-   - [ ] Set up database backups
-
-3. **Authentication**
-   - [ ] Configure production OAuth credentials
-   - [ ] Test authentication flow
-   - [ ] Set up proper callback URLs
-
-4. **Monitoring**
-   - [ ] Configure Sentry environment
-   - [ ] Set up error alerts
-   - [ ] Configure performance monitoring
-
-5. **Analytics**
-   - [ ] Set up PostHog production project
-   - [ ] Configure event tracking
-   - [ ] Set up dashboards
-
-6. **Security**
-   - [ ] Enable HTTPS
-   - [ ] Configure CORS
-   - [ ] Set up rate limiting
-   - [ ] Configure security headers
-
-### Deployment Steps
-
-1. Build the application:
-```bash
-pnpm build
-```
-
-2. Start the production server:
-```bash
-pnpm start
-```
-
-### Railway Deployment
+### Railway
 
 1. Create a new project on Railway
-2. Connect your GitHub repository
-3. Add the required environment variables
+2. Connect your GitHub repository or deploy using the CLI
+3. Configure your environment variables
 4. Deploy!
 
-## Environment Variables
+### Manual Deployment
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `NEXTAUTH_URL` | Your application URL | Yes |
-| `NEXTAUTH_SECRET` | Random string for session encryption | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Yes |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Yes |
-| `OPENAI_API_KEY` | OpenAI API key | Yes |
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `REDIS_URL` | Redis connection string | No |
-| `SENTRY_DSN` | Sentry Data Source Name | No |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key | No |
-| `NEXT_PUBLIC_POSTHOG_HOST` | PostHog host URL | No |
+1. Build the application:
+   ```bash
+   pnpm build
+   ```
+
+2. Start the production server:
+   ```bash
+   pnpm start
+   ```
+
+### Environment Variables
+
+See [.env.example](.env.example) for all available environment variables.
+
+## License
+
+This project is proprietary and confidential.
+
+## Support
+
+For support, please contact [support@darvaya.com](mailto:support@darvaya.com).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org/)
+- [OpenAI](https://openai.com/)
+- [Railway](https://railway.app/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Drizzle ORM](https://orm.drizzle.team/)
+- [NextAuth.js](https://next-auth.js.org/)
 
 ## Contributing
 
@@ -171,7 +276,3 @@ pnpm start
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

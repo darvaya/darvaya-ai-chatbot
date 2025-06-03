@@ -26,6 +26,9 @@ const client = postgres(connectionString, {
   connect_timeout: 10, // Connection timeout in seconds
 });
 
+// Export the database client for direct operations
+export { client };
+
 // Export the Drizzle instance
 export const db = drizzle(client, {
   logger: process.env.NODE_ENV === "development",

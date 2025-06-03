@@ -1,14 +1,17 @@
 # Use Node.js LTS version with Alpine for smaller image size
 FROM node:20-alpine AS base
 
+# Install pnpm globally
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Install dependencies only when needed
 FROM base AS deps
 # Install system dependencies
-RUN apk add --no-cache libc6-compat curl
+RUN apk add --no-cache libc6-compat curl python3 make g++
 WORKDIR /app
 
-# Enable corepack for pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Ensure pnpm is available
+RUN corepack enable && pnpm --version
 
 # Install dependencies based on the preferred package manager
 COPY package.json pnpm-lock.yaml* ./
@@ -17,8 +20,14 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-# Copy node_modules from deps
-COPY --from=deps /app/node_modules ./node_modules
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
+# Ensure pnpm is available
+RUN corepack enable && pnpm --version
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 # Copy application code
 COPY . .
 
@@ -37,16 +46,23 @@ RUN pnpm build && pnpm prune --prod
 FROM base AS runner
 WORKDIR /app
 
+# Install production dependencies
+RUN apk add --no-cache curl
+
 # Set environment variables
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000
+    PORT=3000 \
+    NODE_OPTIONS='--max_old_space_size=2048'
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
-    mkdir -p /app/.next/cache && \
-    chown nextjs:nodejs /app/.next/cache
+    mkdir -p /app/.next/cache /app/.next/standalone /app/.next/static && \
+    chown -R nextjs:nodejs /app/.next
+
+# Ensure pnpm is available
+RUN corepack enable
 
 # Copy necessary files from builder
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public

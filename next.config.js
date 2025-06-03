@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const webpack = require("webpack");
 
-// Add Node.js polyfills
-const nodeExternals = require("webpack-node-externals");
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure webpack to handle Node.js polyfills
@@ -54,30 +51,14 @@ const nextConfig = {
     return config;
   },
 
-  // Disable server components external packages that use Node.js modules
-  experimental: {
-    serverComponentsExternalPackages: ["@auth/drizzle-adapter"],
-  },
-
   // Configure images
-  images: {
-    domains: ["avatars.githubusercontent.com", "lh3.googleusercontent.com"],
-    unoptimized: true, // Disable default image optimization for now
-  },
-
-  // Environment variables for client-side
-  env: {
-    NEXT_PUBLIC_APP_URL:
-      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  },
-
-  // Image optimization settings
   images: {
     domains: ["avatars.githubusercontent.com", "lh3.googleusercontent.com"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ["image/webp"],
-    unoptimized: true, // Disable default image optimization for now
+    unoptimized: false, // Enable image optimization
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
 
   // Environment variables for client-side
@@ -90,11 +71,11 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/:all*(svg|jpg|png|webp)",
+        source: "/:all*(svg|jpg|png|webp|ico|json|xml)",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, must-revalidate",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
@@ -103,14 +84,35 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, must-revalidate",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
         ],
       },
     ];
   },
 
-  // Enable React strict mode for better development
+  // Enable React strict mode
   reactStrictMode: true,
 
   // Disable x-powered-by header for security
@@ -118,6 +120,25 @@ const nextConfig = {
 
   // Enable compression
   compress: true,
+
+  // Enable production browser source maps
+  productionBrowserSourceMaps: true,
+
+  // Enable static exports for static site generation
+  output: "standalone",
+
+  // Configure build output directory
+  distDir: ".next",
+
+  // Configure build ID
+  generateBuildId: async () => {
+    // Use the commit hash as the build ID
+    if (process.env.RAILWAY_GIT_COMMIT_SHA) {
+      return process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 12);
+    }
+    // Fallback to a timestamp for local development
+    return `dev-${Date.now()}`;
+  },
 
   // Configure redirects for cleaner URLs
   async redirects() {
@@ -140,9 +161,7 @@ const nextConfig = {
   },
 
   // Use SWC for compilation
-  experimental: {
-    swcMinify: true,
-  },
+  swcMinify: true,
 
   // Webpack configuration for optimizations
   webpack: (config, { dev, isServer }) => {

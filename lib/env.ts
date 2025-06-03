@@ -50,6 +50,15 @@ const baseSchema = z.object({
     .enum(["production", "preview", "development"])
     .optional(),
   RAILWAY_GIT_COMMIT_SHA: z.string().optional(),
+  RAILWAY_SERVICE_NAME: z.string().optional(),
+  RAILWAY_GIT_BRANCH: z.string().optional(),
+  RAILWAY_GIT_REPO_OWNER: z.string().optional(),
+  RAILWAY_GIT_REPO_NAME: z.string().optional(),
+  RAILWAY_GIT_COMMIT_MESSAGE: z.string().optional(),
+  RAILWAY_GIT_COMMIT_AUTHOR: z.string().optional(),
+  RAILWAY_GIT_COMMIT_AUTHOR_EMAIL: z.string().optional(),
+  RAILWAY_GIT_COMMIT_TIMESTAMP: z.string().optional(),
+  RAILWAY_GIT_REPO_URL: z.string().url().optional(),
 });
 
 // Schema for production environment
@@ -82,20 +91,36 @@ export const env = (() => {
     // Set default NODE_ENV if not set
     if (!envVars.NODE_ENV) {
       envVars.NODE_ENV = (
-        envVars.VERCEL_ENV === "production"
+        envVars.RAILWAY_ENVIRONMENT === "production"
           ? "production"
-          : envVars.VERCEL_ENV === "preview"
+          : envVars.RAILWAY_ENVIRONMENT === "preview"
             ? "development"
             : "development"
       ) as "development" | "production" | "test";
     }
 
     // Set default NEXTAUTH_URL if not set
-    if (!envVars.NEXTAUTH_URL && envVars.VERCEL_URL) {
-      envVars.NEXTAUTH_URL = `https://${envVars.VERCEL_URL}`;
-    } else if (!envVars.NEXTAUTH_URL) {
+    if (!envVars.NEXTAUTH_URL) {
       envVars.NEXTAUTH_URL =
         envVars.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    }
+
+    // Set default PORT for Railway
+    if (!envVars.PORT) {
+      envVars.PORT = "3000";
+    }
+
+    // Set default NEXTAUTH_URL for production
+    if (envVars.NODE_ENV === "production" && !envVars.NEXTAUTH_URL) {
+      // For Railway deployments, use the RAILWAY_PUBLIC_DOMAIN if available
+      if (envVars.RAILWAY_PUBLIC_DOMAIN) {
+        envVars.NEXTAUTH_URL = `https://${envVars.RAILWAY_PUBLIC_DOMAIN}`;
+      } else if (envVars.RAILWAY_STATIC_URL) {
+        envVars.NEXTAUTH_URL = envVars.RAILWAY_STATIC_URL;
+      } else if (envVars.RAILWAY_SERVICE_NAME) {
+        // Fallback to Railway's service name if no domain is set
+        envVars.NEXTAUTH_URL = `https://${envVars.RAILWAY_SERVICE_NAME}.up.railway.app`;
+      }
     }
 
     // Set default PORT if not set

@@ -8,6 +8,32 @@ import { authMiddleware } from "./middleware/auth";
 import { getRateLimiter } from "@/lib/security/rate-limit";
 import { rateLimit } from "./middleware/rate-limit";
 
+// Configuration
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const ALLOWED_ORIGINS = [
+  APP_URL,
+  "https://*.railway.app",
+  "https://*.openai.com",
+  "https://*.google.com",
+  "https://*.googleapis.com",
+].filter(Boolean);
+
+// Helper to check if origin is allowed
+const isAllowedOrigin = (origin: string): boolean => {
+  try {
+    const url = new URL(origin);
+    return ALLOWED_ORIGINS.some((allowed) => {
+      if (allowed.startsWith("*")) {
+        const domain = allowed.substring(2); // Remove '*.'
+        return url.hostname.endsWith(domain);
+      }
+      return url.origin === allowed;
+    });
+  } catch {
+    return false;
+  }
+};
+
 // Define paths and their rate limit tiers
 const pathTiers: Record<string, string> = {
   "/api/auth": "auth",
@@ -99,21 +125,24 @@ export async function middleware(request: NextRequest) {
     );
     response.headers.set("X-RateLimit-Reset", String(rateLimitInfo.reset));
 
-    // Add security headers
-    response.headers.set(
-      "Access-Control-Allow-Origin",
-      process.env.APP_URL || "*",
-    );
+    // Get the origin from the request
+    const origin = request.headers.get("origin") || "";
+    const allowedOrigin = isAllowedOrigin(origin) ? origin : APP_URL;
+
+    // CORS Headers
+    response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
     response.headers.set(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, OPTIONS",
     );
     response.headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization",
+      "Content-Type, Authorization, X-CSRF-Token",
     );
+    response.headers.set("Access-Control-Allow-Credentials", "true");
+    response.headers.set("Access-Control-Max-Age", "86400"); // 24 hours
 
-    // Security headers
+    // Security Headers
     response.headers.set("X-DNS-Prefetch-Control", "on");
     response.headers.set(
       "Strict-Transport-Security",
@@ -122,18 +151,26 @@ export async function middleware(request: NextRequest) {
     response.headers.set("X-XSS-Protection", "1; mode=block");
     response.headers.set("X-Frame-Options", "SAMEORIGIN");
     response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "origin-when-cross-origin");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()",
+    );
 
     // Content Security Policy
-    response.headers.set(
-      "Content-Security-Policy",
-      "default-src 'self'; " +
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' blob: data: https:; " +
-        "font-src 'self'; " +
-        "connect-src 'self' https://*.vercel.app https://*.openai.com;",
-    );
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: http:",
+      "style-src 'self' 'unsafe-inline' https: http:",
+      "img-src 'self' blob: data: https: http:",
+      "font-src 'self' data: https: http:",
+      `connect-src 'self' ${ALLOWED_ORIGINS.join(" ")}`,
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      "base-uri 'self'",
+    ].join("; ");
+
+    response.headers.set("Content-Security-Policy", csp);
 
     return response;
   } catch (error) {
